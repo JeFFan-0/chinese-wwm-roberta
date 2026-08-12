@@ -38,7 +38,11 @@ def ece(logits: torch.Tensor, targets: torch.Tensor, n_bins: int = 15) -> torch.
     total = 0.0
     for b in range(n_bins):
         lo, hi = bins[b], bins[b + 1]
-        in_bin = (conf > lo) & (conf <= hi) if b < n_bins - 1 else (conf >= lo) & (conf <= hi)
+        # 每个 bin 用 (lo, hi]，首个 bin 含左端点，避免相邻 bin 在边界上重复计数
+        if b == 0:
+            in_bin = (conf >= lo) & (conf <= hi)
+        else:
+            in_bin = (conf > lo) & (conf <= hi)
         if in_bin.sum() == 0:
             continue
         bin_acc = acc[in_bin].mean()
@@ -55,8 +59,14 @@ def max_prob_score(logits: torch.Tensor) -> torch.Tensor:
 
 
 def entropy_score(logits: torch.Tensor, base: float = 2.0) -> torch.Tensor:
+    """Shannon 熵，单位可任意底数（默认 bit）。
+
+    自然对数熵 H_nats 除以 ln(base) 得到 base 进制下的熵。
+    """
+    import math
     p = torch.softmax(logits, dim=-1).clamp_min(1e-12)
-    return -(p * p.log()).sum(dim=-1) / (base if base == 2.0 else 1.0)
+    h_nats = -(p * p.log()).sum(dim=-1)
+    return h_nats / math.log(base)
 
 
 def margin_score(logits: torch.Tensor) -> torch.Tensor:
@@ -65,9 +75,10 @@ def margin_score(logits: torch.Tensor) -> torch.Tensor:
 
 
 def patience_score(logits_history: Sequence[torch.Tensor], patience: int = 2) -> torch.Tensor:
-    """连续 patience 次预测一致则满足退出（二元 0/1）。输入为逐层 logits 列表。"""
+    """连续 patience 次预测一致则满足退出（二元 0/1，按样本）。输入为逐层 logits 列表。"""
+    batch = logits_history[-1].shape[0]
     if len(logits_history) <= patience:
-        return torch.zeros(1, dtype=torch.long, device=logits_history[-1].device)
+        return torch.zeros(batch, dtype=torch.long, device=logits_history[-1].device)
     preds = torch.stack([l.argmax(dim=-1) for l in logits_history[-patience:]])
     consistent = (preds == preds[0]).all(dim=0)
     return consistent.long()

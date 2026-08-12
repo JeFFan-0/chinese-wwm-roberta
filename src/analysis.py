@@ -195,9 +195,9 @@ def attention_comparison(
 ) -> List[Dict[str, Any]]:
     """对每个 encoder layer 的 attention 计算 masked cosine（query 与 key 均有效）。"""
     rows = []
-    q_valid = attention_mask[:, None, None, :].bool()   # [B,1,1,S] key 有效
-    k_valid = attention_mask[:, None, :, None].bool()   # [B,1,S,1] query 有效
-    valid = (q_valid & k_valid)                          # [B,1,S,S]，广播到 head 维
+    key_valid = attention_mask[:, None, None, :].bool()     # [B,1,1,S] key 维有效
+    query_valid = attention_mask[:, None, :, None].bool()   # [B,1,S,1] query 维有效
+    valid = (query_valid & key_valid)                        # [B,1,S,S]，广播到 head 维
     for layer, (af, ab) in enumerate(zip(attn_ft, attn_base)):
         mask_full = valid.expand_as(af)                  # [B,H,S,S]
         va, vb = af[mask_full].double(), ab[mask_full].double()

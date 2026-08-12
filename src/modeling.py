@@ -27,7 +27,11 @@ P2_OUT = 2
 
 
 def checkpoint_hash(path: str, manifest_path: Optional[str] = None) -> str:
-    """返回 checkpoint 的 SHA-256，优先读取已生成的 manifest（避免重复哈希 400MB）。
+    """返回 checkpoint 文件的 SHA-256，优先复用 manifest 中已记录的哈希。
+
+    只在**当前文件与 manifest 记录一致**时复用（大小 + 修改时间都匹配），
+    否则重新计算。避免 checkpoint 被替换后仍用旧的 manifest 哈希去标注
+    新加载的权重（audit trail 与缓存版本键会因此失真）。
 
     manifest 缺省路径为 ``metadata/model_manifest.json``。
     """
@@ -36,13 +40,18 @@ def checkpoint_hash(path: str, manifest_path: Optional[str] = None) -> str:
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "metadata", "model_manifest.json",
         )
-    if os.path.isfile(manifest_path):
+    if os.path.isfile(path) and os.path.isfile(manifest_path):
         try:
             with open(manifest_path, "r", encoding="utf-8") as f:
                 meta = json.load(f)
             h = meta.get("checkpoint", {}).get("sha256")
-            if h:
-                return h
+            size = meta.get("checkpoint", {}).get("size_bytes")
+            if h and size == os.path.getsize(path):
+                # 文件大小一致且 manifest 未改动（用 mtime 做二次校验）
+                manifest_mtime = os.path.getmtime(manifest_path)
+                file_mtime = os.path.getmtime(path)
+                if manifest_mtime >= file_mtime:
+                    return h
         except Exception:  # noqa: BLE001
             pass
     return hashlib.sha256(open(path, "rb").read()).hexdigest()

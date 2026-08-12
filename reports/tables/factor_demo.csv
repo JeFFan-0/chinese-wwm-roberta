@@ -1,6 +1,5 @@
 entity_id,factor_day,n_texts,weighted_sentiment,text_ids,model_hash,config_version,winsorized_sentiment,standardized_sentiment
-E1,2024-01-03,1,-1.0,['t0'],synthetic-hash,1.0,-1.0,-0.6719082191366811
-E1,2024-01-04,1,2.0,['t1'],synthetic-hash,1.0,1.952,1.4045920560847203
-E2,2024-01-03,1,-0.4,['t2'],synthetic-hash,1.0,-0.4,-0.24985531766891658
-E2,2024-01-04,1,0.8,['t3'],synthetic-hash,1.0,0.8,0.5942504852666125
-E3,2024-01-03,1,-1.6,['t4'],synthetic-hash,1.0,-1.576,-1.0770790045457352
+E1,2024-01-03,1,-1.0,['t0'],synthetic-hash,1.0,-1.0,-0.6405661992804502
+E1,2024-01-04,1,2.0,['t1'],synthetic-hash,1.0,1.9639999999999997,1.1754435708460487
+E2,2024-01-04,1,0.8,['t3'],synthetic-hash,1.0,0.8,0.46227374209191757
+E3,2024-01-03,1,-1.6,['t4'],synthetic-hash,1.0,-1.582,-0.9971511136575159

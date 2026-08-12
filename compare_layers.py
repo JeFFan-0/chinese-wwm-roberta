@@ -108,16 +108,27 @@ def main() -> int:
     print("\n  局部层替换对比（同一 hidden 输入分别过 ft/base 对应层，仅自选文本 smoke test）")
     print(local.round(6).to_string(index=False))
 
-    # ---- 结论措辞（修正后）----
+    # ---- 结论措辞（修正后，逐项核对数值再下结论）----
     print("\n" + "=" * 72)
     print("结论（措辞已按 P6 修正）")
     print("=" * 72)
-    print("- 权重级：ft 与 base 差异整体很小（真实 max abs delta ≈ %.2e，逐层 rel_L2 近似均匀），"
+
+    rel = wl["relative_l2_layer"]
+    rel_range = float(rel.max() - rel.min())
+    mono = bool((hs["cos_micro"].diff().dropna() <= 1e-9).all())
+    print("- 权重级：ft 与 base 差异整体很小（真实 max abs delta ≈ %.2e）。"
           % overall_max)
-    print("  这是'逐层参数几乎未动'的**累计表示差异**描述，不能由此推断某一层自身改动最大。")
-    print("- 激活级：hidden-state 差异随深度单调增大（cos 从 %.4f 降到 %.4f），"
-          % (hs["cos_micro"].iloc[1], hs["cos_micro"].iloc[-1]))
+    print("  rel_L2_layer 范围 [%.4f, %.4f]（极差 %.4f），在自选 4 条文本上"
+          % (rel.min(), rel.max(), rel_range))
+    print("  逐层权重差异近似均匀；权重级是**逐参数差异**统计，不属于'累计表示差异'。")
+    print("- 激活级：hidden-state 差异随深度逐步增大（cos 从 %.4f 降到 %.4f，%s），"
+          % (hs["cos_micro"].iloc[1], hs["cos_micro"].iloc[-1],
+             "该 4 条文本上单调下降" if mono else "非严格单调"))
     print("  这是**累计表示差异**（每层都作用在上一层差异之上），不由曲线推断单层改动量。")
+    print("- 局部层替换对比（同一输入分别过 ft/base 对应层）显示各层自身输出差异都较小且"
+          "近似均匀，")
+    print("  即单层权重差异贡献有限，激活级随深度增大的差异主要来自**累计**而非单层改动；")
+    print("  仅限自选文本 smoke test，不形成总体结论。")
     print("- 未计算层任务价值/情绪能力：无标签数据，不做任何该声明。")
     print("- 不使用 ReLU 死神经元概念：底座配置激活函数为 GELU。")
     print("- 所有统计均 mask 掉 padding；结果见 reports/tables/。")

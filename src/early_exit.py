@@ -214,11 +214,12 @@ class EarlyExitEngine(nn.Module):
                 return "fixed_layer"
             return None
 
-        # 生产成本模型：只在退出层评估 head，其余层只执行不加头
+        # 生产成本模型：只在退出层评估 head；最终兜底层恒评估（保证必有输出）
         result = self._run_loop(input_ids, attention_mask, token_type_ids, cond,
-                                evaluate_layers=[exit_layer])
-        # 与策略名一致，兜底也标记 fixed_layer
-        result.exit_reason = "fixed_layer"
+                                evaluate_layers=sorted({exit_layer, self.fallback_layer}))
+        # 若 head 在该层不适用而实际退到兜底层，则如实标记 fallback，不冒充 fixed_layer
+        if result.exit_layer == exit_layer:
+            result.exit_reason = "fixed_layer"
         return result
 
     # ------------------------------------------------------------------ #
@@ -294,6 +295,7 @@ class EarlyExitEngine(nn.Module):
         embeds = self.bert.embeddings(input_ids=input_ids, token_type_ids=token_type_ids)
         h = embeds
         max_exec = 0
+        max_exit = 0          # 任意样本实际退出的最大层
         for layer_idx in range(self.fallback_layer + 1):
             if not active:
                 break
@@ -307,6 +309,7 @@ class EarlyExitEngine(nn.Module):
                 continue  # head 在该层不适用
             still_active: List[int] = []
             kept_indices: List[int] = []
+            exited_here = False
             for j, orig_idx in enumerate(active):
                 if strategy == "max_prob":
                     met = logits[j].softmax(dim=-1).max().item() >= threshold
@@ -317,12 +320,16 @@ class EarlyExitEngine(nn.Module):
                 if layer_idx in cands and met:
                     logits_out[orig_idx] = logits[j].detach()
                     reasons_out[orig_idx] = f"{strategy}_threshold"
+                    exited_here = True
                 elif layer_idx == self.fallback_layer:
                     logits_out[orig_idx] = logits[j].detach()
                     reasons_out[orig_idx] = "fallback"
+                    exited_here = True
                 else:
                     still_active.append(orig_idx)
                     kept_indices.append(j)
+            if exited_here:
+                max_exit = layer_idx
             if kept_indices:
                 h = h[kept_indices]
             active = still_active
@@ -332,7 +339,7 @@ class EarlyExitEngine(nn.Module):
         result = ExitResult(
             logits=logits_out,
             probabilities=probs_out,
-            exit_layer=self.fallback_layer,
+            exit_layer=max_exit,
             executed_layer_count=max_exec,
             exit_reason="active_set",
             latency_ms=latency_ms,

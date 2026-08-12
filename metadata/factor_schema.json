@@ -29,7 +29,7 @@
       "fields": [
         "entity_id", "factor_day", "n_texts", "weighted_sentiment",
         "winsorized_sentiment", "standardized_sentiment",
-        "model_hash", "config_version"
+        "text_ids", "model_hash", "config_version"
       ]
     }
   ],

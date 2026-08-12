@@ -191,15 +191,46 @@ def map_predictions(
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """从 raw_predictions 构造 mapped_predictions + rejected。
 
-    校验：缺失主体/时间按配置 reject；标签未确认时不加正负字段。
+    流程：按配置去重 → 缺失主体/时间按各自规则拒绝 → 低置信度拒识 → 交易时间归属。
+    标签未确认时不加正负字段；输出会通过 point-in-time 检查。
     """
-    missing_rule = config.get("missing", {}).get("missing_entity", "reject")
-    reject_mask = raw["entity_id"].isna() | raw["published_at"].isna()
-    if missing_rule != "reject":
-        raise NotImplementedError("当前仅实现 reject 规则")
+    missing = config.get("missing", {})
+    missing_entity_rule = missing.get("missing_entity", "reject")
+    missing_time_rule = missing.get("missing_time", "reject")
+    if missing_entity_rule != "reject" or missing_time_rule != "reject":
+        raise NotImplementedError("当前仅实现 reject 规则（missing_entity/missing_time）")
 
-    mapped = raw[~reject_mask].copy()
-    rejected = raw[reject_mask].copy()
+    work = raw.copy()
+    # 1) 去重：按 config dedup.exact_text_entity 规则
+    dedup_cfg = config.get("dedup", {})
+    if dedup_cfg.get("exact_text_entity") == "drop":
+        work = deduplicate_exact(work, on=["text_id"])
+
+    # 2) 缺失主体/时间：各自按规则拒绝
+    reject_entity = work["entity_id"].isna()
+    reject_time = work["published_at"].isna()
+    reject_mask = reject_entity | reject_time
+    rejected = work[reject_mask].copy()
+
+    def _missing_reason(row):
+        e, t = row["entity_id"], row["published_at"]
+        e_missing = e is None or (isinstance(e, float) and pd.isna(e))
+        t_missing = t is None or pd.isna(t)
+        if e_missing and t_missing:
+            return "missing_entity_and_time"
+        if e_missing:
+            return "missing_entity"
+        return "missing_time"
+
+    rejected["reject_reason"] = rejected.apply(_missing_reason, axis=1)
+    mapped = work[~reject_mask].copy()
+
+    # 3) 低置信度拒识（阈值占位，未校准）
+    min_max_prob = config.get("min_max_probability")
+    if min_max_prob is not None:
+        mapped, low_conf = reject_low_confidence(mapped, min_max_prob)
+        low_conf["reject_reason"] = "low_confidence"
+        rejected = pd.concat([rejected, low_conf], ignore_index=True)
 
     if mapped.empty:
         return mapped, rejected
@@ -221,6 +252,10 @@ def map_predictions(
         mapped["p_negative"] = mapped["class_0_prob"]
         mapped["p_positive"] = mapped["class_1_prob"]
         mapped["sentiment_score"] = mapped["p_positive"] - mapped["p_negative"]
+
+    # 4) point-in-time 检查：任何文本不得进入早于其发布日的因子
+    if not point_in_time_check(None, mapped):
+        raise ValueError("point-in-time 检查失败：存在文本进入早于发布日的因子")
     return mapped, rejected
 
 
@@ -244,13 +279,28 @@ def aggregate_daily_factor(
             "winsorized_sentiment", "standardized_sentiment",
             "model_hash", "config_version"])
 
-    w = mapped["source_weight"] * mapped["time_decay_weight"]
+    # 校验 model_hash / config_version 一致性（不得混用不同版本）
+    if "model_hash" in mapped.columns and mapped["model_hash"].nunique() > 1:
+        raise ValueError(f"mapped_predictions 混用多个 model_hash: {sorted(mapped['model_hash'].unique())}")
+    if "config_version" in mapped.columns and mapped["config_version"].nunique() > 1:
+        raise ValueError("mapped_predictions 混用多个 config_version")
+
     g = mapped.groupby(["entity_id", "factor_day"])
-    out = g.apply(lambda df: pd.Series({
-        "n_texts": len(df),
-        "weighted_sentiment": float(np.average(df[sentiment_col], weights=df["source_weight"] * df["time_decay_weight"])),
-        "text_ids": list(df["text_id"]),
-    }), include_groups=False).reset_index()
+
+    def _agg(df: pd.DataFrame) -> pd.Series:
+        wts = df["source_weight"] * df["time_decay_weight"]
+        wsum = float(wts.sum())
+        if wsum <= 0:                       # 权重和为零 → 退化为等权均值
+            weighted = float(df[sentiment_col].mean())
+        else:
+            weighted = float(np.average(df[sentiment_col], weights=wts))
+        return pd.Series({
+            "n_texts": len(df),
+            "weighted_sentiment": weighted,
+            "text_ids": list(df["text_id"]),
+        })
+
+    out = g.apply(_agg, include_groups=False).reset_index()
 
     out["model_hash"] = mapped["model_hash"].iloc[0] if "model_hash" in mapped else ""
     out["config_version"] = mapped["config_version"].iloc[0] if "config_version" in mapped else ""

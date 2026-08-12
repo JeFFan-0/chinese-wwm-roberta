@@ -52,7 +52,7 @@ from src.data import (  # noqa: E402
     validate_dataset,
 )
 from src.heads import build_layer_heads_model  # noqa: E402
-from src.modeling import load_tokenizer  # noqa: E402
+from src.modeling import load_tokenizer, tokenize_texts  # noqa: E402
 from src.training import (  # noqa: E402
     load_cached_features,
     load_head_checkpoint,
@@ -153,7 +153,7 @@ def main() -> int:
     print(f"    缓存特征 shape={tuple(feats.shape)}  label 数={len(labels)}")
 
     summary = train_heads_from_features(model, feats, labels, head_type="copied_layer_heads",
-                                        n_epochs=3, lr=0.01, device="cpu")
+                                        n_epochs=3, lr=0.01, device=args.device)
     assert summary.backbone_unchanged, "训练后 backbone 应完全不变"
     print(f"[5] 训练 {summary.n_epochs} epoch：backbone 不变={summary.backbone_unchanged}")
     print(f"    每层 train acc（synthetic_only）: "
@@ -174,33 +174,36 @@ def main() -> int:
     assert max_diff < 1e-5, f"重载后 logits 不一致: {max_diff}"
     print(f"[6] 保存/重载 head checkpoint；logits 最大差 {max_diff:.2e}（一致）")
 
-    # ---- 6. 校准接口（合成 logits）----
+    # ---- 6. 校准接口（合成 logits，用 dev split 做 calibration，与 test 严格分离）----
     print("[7] 校准接口（synthetic_only）")
+    dev_enc = tokenize_texts([s.text for s in dev], tokenizer)
+    dev_enc = {k: v.to(args.device) for k, v in dev_enc.items()}
     with torch.no_grad():
-        out = model(**{k: v.to(args.device) for k, v in enc.items()})
-    logits = out.results["copied_layer_heads"]                     # [B,12,2]
-    tgt = torch.tensor(labels[: logits.shape[0]], dtype=torch.long)
+        out = model(**dev_enc)
+    dev_logits = out.results["copied_layer_heads"]                 # [N_dev,12,2]
+    dev_labels = torch.tensor([s.label for s in dev], dtype=torch.long)
+    dev_ids = [s.id for s in dev]
+    cal_logits = dev_logits[:, -1]                                 # 用最终层 logits 做校准
+    cal_tgt = dev_labels
 
-    temp = fit_temperature(logits[:, -1], tgt, steps=100)
+    temp = fit_temperature(cal_logits, cal_tgt, steps=100)
     assert temp.item() > 0, "温度必须恒正"
-    scaled = temperature_scale(logits[:, -1], temp)
-    n = nll(scaled, tgt).item()
-    e = ece(scaled, tgt, n_bins=10).item()
+    scaled = temperature_scale(cal_logits, temp)
+    n = nll(scaled, cal_tgt).item()
+    e = ece(scaled, cal_tgt, n_bins=10).item()
     assert all(torch.isfinite(torch.tensor([n, e, temp])).tolist()), "校准结果出现 NaN/Inf"
-    print(f"    温度 T={temp.item():.4f}  NLL={n:.4f}  ECE={e:.4f}（合成 logits）")
+    print(f"    温度 T={temp.item():.4f}  NLL={n:.4f}  ECE={e:.4f}（合成 logits，dev={len(dev)}）")
 
-    # 阈值搜索：calibration 与 test 严格分离
-    cal_logits = logits[:32, -1]
-    cal_tgt = tgt[:32]
-    test_ids = set(ids[32:])
-    cal_ids = set(ids[:32])
+    # 阈值搜索：calibration（dev）与 test 严格分离
+    test_ids = {s.id for s in test}
+    cal_ids = set(dev_ids)
     assert_calibration_test_separate(cal_ids, test_ids)
     res = search_threshold(cal_logits, cal_tgt, score_fn=max_prob_score,
                            target_quality=0.5, min_coverage=0.2, mode="max")
     print(f"    阈值搜索（calibration 独立）：coverage={res.coverage:.2f} "
           f"quality={res.quality:.2f} calibrated={res.calibrated}")
     print(f"    分数示例：max_prob entropy margin 均有限="
-          f"{torch.isfinite(entropy_score(logits[:, -1])).all().item()}")
+          f"{torch.isfinite(entropy_score(cal_logits)).all().item()}")
 
     # ---- 7. 输出标记 synthetic_only ----
     out_csv = os.path.join(ROOT, "reports", "tables", "synthetic_pipeline_report.csv")

@@ -4,6 +4,7 @@ import sys
 from datetime import timezone
 
 import pytest
+from datetime import datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -29,14 +30,22 @@ def synthetic():
 def test_parse_datetime_utc_ok():
     dt, err = parse_datetime_utc("2024-01-02T03:04:05+08:00")
     assert err is None
-    assert dt.tzinfo is not None
-    assert dt.utcoffset().total_seconds() == 8 * 3600
+    assert dt.tzinfo == timezone.utc
+    # +08:00 03:04 应转换为 UTC 前一日 19:04
+    assert dt == datetime(2024, 1, 1, 19, 4, 5, tzinfo=timezone.utc)
+
+
+def test_parse_datetime_utc_fractional_seconds():
+    dt, err = parse_datetime_utc("2024-01-02T03:04:05.123456+08:00")
+    assert err is None
+    assert dt.microsecond == 123456
 
 
 def test_parse_datetime_utc_z():
     dt, err = parse_datetime_utc("2024-01-02T03:04:05Z")
     assert err is None
     assert dt.tzinfo == timezone.utc
+    assert dt == datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
 
 
 def test_parse_datetime_utc_invalid():

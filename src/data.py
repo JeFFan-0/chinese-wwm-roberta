@@ -52,7 +52,10 @@ class ValidationResult:
 # 时间解析（要求时区）
 # --------------------------------------------------------------------------- #
 def parse_datetime_utc(value: Optional[str]) -> Tuple[Optional[datetime], Optional[str]]:
-    """解析 ISO 时间，要求带时区。返回 (datetime, error)。"""
+    """解析 ISO 时间（要求带时区），**统一转换为 UTC**，并保留小数秒。
+
+    返回 (datetime, error)。
+    """
     if value is None or str(value).strip() == "":
         return None, None
     s = str(value).strip()
@@ -61,7 +64,9 @@ def parse_datetime_utc(value: Optional[str]) -> Tuple[Optional[datetime], Option
         return None, "invalid_datetime_format"
     year, month, day, hh, mm = (int(m.group(i)) for i in (1, 2, 3, 4, 5))
     ss = int(m.group(6) or 0)
-    tz_str = m.group(8)   # group 7 是可选小数秒，时区是 group 8
+    frac = m.group(7) or ""            # 可选小数秒 ".123456"
+    micro = int(frac.lstrip(".").ljust(6, "0") or "0") if frac else 0
+    tz_str = m.group(8)                # group 7 是小数秒，时区是 group 8
     if tz_str == "Z":
         tz = timezone.utc
     else:
@@ -69,7 +74,8 @@ def parse_datetime_utc(value: Optional[str]) -> Tuple[Optional[datetime], Option
         tz_clean = tz_str[1:].replace(":", "")
         tz = timezone(sign * timedelta(hours=int(tz_clean[:2]), minutes=int(tz_clean[2:4])))
     try:
-        return datetime(year, month, day, hh, mm, ss, tzinfo=tz), None
+        dt = datetime(year, month, day, hh, mm, ss, micro, tzinfo=tz)
+        return dt.astimezone(timezone.utc), None   # 统一到 UTC
     except ValueError:
         return None, "invalid_datetime_value"
 
@@ -157,7 +163,13 @@ def split_dataset(
         raise ValueError("train_frac/dev_frac 需满足 0 < train < 1, 0 <= dev, train+dev < 1")
     items = list(samples)
     rng = random.Random(seed)
-    if stratify_key == "label" and items and items[0].label is not None:
+    if stratify_key == "label":
+        if items and items[0].label is None:
+            raise ValueError("stratify_key='label' 时所有样本必须有 label，不能静默退化为随机切分")
+        missing_labels = [s.id for s in items if s.label is None]
+        if missing_labels:
+            raise ValueError(f"stratify_key='label' 时存在无 label 样本: {missing_labels[:5]}")
+    if stratify_key == "label":
         by_label: Dict[Optional[int], List[Sample]] = {}
         for s in items:
             by_label.setdefault(s.label, []).append(s)

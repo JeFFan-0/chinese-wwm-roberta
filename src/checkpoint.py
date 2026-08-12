@@ -166,8 +166,14 @@ def sha256_file(path: str, chunk_size: int = 1 << 20) -> str:
 
 
 def sha256_tensor(t: torch.Tensor) -> str:
-    """对张量字节计算 SHA-256（便于自比较/审计）。"""
-    return hashlib.sha256(t.detach().cpu().contiguous().numpy().tobytes()).hexdigest()
+    """对张量字节计算 SHA-256（便于自比较/审计）。
+
+    bfloat16 无 numpy 标量类型，先转 float32 再哈希。
+    """
+    t = t.detach().cpu()
+    if t.dtype == torch.bfloat16:
+        t = t.float()
+    return hashlib.sha256(t.contiguous().numpy().tobytes()).hexdigest()
 
 
 def param_count(state_dict: Mapping[str, torch.Tensor]) -> int:
@@ -183,6 +189,10 @@ def state_dict_diff_metrics(
     """对给定键集合计算 base/delta/relative L2 与 cosine（用于自比较与 P6）。
 
     相同 state dict 自比较时应得到：所有 delta=0，cos=1。
+
+    Raises:
+        ValueError: 没有任何键被实际比较时（keys 为空或全部缺失），避免"空比较
+            却返回完美一致"的虚假结果。
     """
     key_list = list(keys) if keys is not None else list(a.keys())
     total_base_l2 = 0.0
@@ -192,8 +202,10 @@ def state_dict_diff_metrics(
     max_abs_delta = 0.0
     cosine_sum = 0.0
     counted = 0
+    missing: List[str] = []
     for k in key_list:
         if k not in a or k not in b:
+            missing.append(k)
             continue
         ta = a[k].flatten().double()
         tb = b[k].flatten().double()
@@ -206,6 +218,10 @@ def state_dict_diff_metrics(
         denom = tb.norm().item() * ta.norm().item()
         cosine_sum += float((ta @ tb).item() / denom) if denom > 0 else 1.0
         counted += 1
+    if counted == 0:
+        raise ValueError(
+            f"state_dict_diff_metrics 没有比较任何键（请求 {len(key_list)} 个，"
+            f"全部缺失: {missing[:5]}...）；空比较不应返回'完美一致'")
     return {
         "delta_l2": total_delta_l2 ** 0.5,
         "base_l2": total_base_l2 ** 0.5,

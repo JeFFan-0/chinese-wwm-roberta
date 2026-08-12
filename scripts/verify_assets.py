@@ -261,6 +261,8 @@ def main() -> int:
                 errors.append(f"backbone missing keys: {report_strict['missing_keys'][:10]}")
             if report_strict["unexpected_keys"]:
                 print("    unexpected:", report_strict["unexpected_keys"][:10])
+                # strict 加载会因 unexpected 键失败，P0 验收必须显式报错
+                errors.append(f"backbone unexpected keys: {report_strict['unexpected_keys'][:10]}")
             if report_strict["shape_mismatch"]:
                 print("    shape mismatch:", report_strict["shape_mismatch"][:5])
                 errors.append("backbone shape mismatch > 0")

@@ -197,13 +197,13 @@ def main() -> int:
             r["theoretical_layer_savings"] = 0.0
             return r, None
         base = base_map[(r["seq_len"], r["batch"])]
-        ideal = 12.0 / r["exit_layer"]  # 理论层数加速比（12/(k+1)）
+        ideal = 12.0 / (r["exit_layer"] + 1)  # 理论层数加速比：退出 encoder layer k 执行 k+1 层，12/(k+1)
         measured = base / r["p50_latency_ms"] if r["p50_latency_ms"] > 0 else float("nan")
         r = r.copy()
         r["ideal_speedup"] = round(ideal, 3)
         r["measured_speedup"] = round(measured, 3)
         r["speedup_gap"] = round(ideal - measured, 3)
-        r["theoretical_layer_savings"] = round(1.0 - r["exit_layer"] / 12.0, 4)
+        r["theoretical_layer_savings"] = round(1.0 - (r["exit_layer"] + 1) / 12.0, 4)
         return r, None
     out_rows = [derive(r)[0] for _, r in df.iterrows()]
     df = pd.DataFrame(out_rows)

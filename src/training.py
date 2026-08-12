@@ -41,19 +41,23 @@ def compute_cached_features(
     pooling: str,
     model_hash: str,
     device: str = "cpu",
-) -> Tuple[torch.Tensor, List[int], List[str]]:
+) -> Tuple[torch.Tensor, List[int], List[str], List[int]]:
     """一次前向缓存 12 层 pooled feature（不缓存整块 token hidden state）。
 
-    返回 (features [N,12,768], labels, ids)。
+    返回 (features [N,12,768], labels, ids, attention_lengths)。
     """
-    feats, labels, ids = [], [], []
+    feats, labels, ids, attn_lens = [], [], [], []
     for enc, batch_labels, batch_ids in dataloader:
         enc = {k: v.to(device) for k, v in enc.items()}
         out = model(**enc)
         feats.append(out.pooled_features.detach().cpu())   # [B,12,768]
         labels.extend(batch_labels)
         ids.extend(batch_ids)
-    return torch.cat(feats, dim=0), labels, ids
+        if "attention_mask" in enc:
+            attn_lens.extend(enc["attention_mask"].sum(dim=1).tolist())
+        else:
+            attn_lens.extend([enc["input_ids"].shape[1]] * enc["input_ids"].shape[0])
+    return torch.cat(feats, dim=0), labels, ids, attn_lens
 
 
 def cache_features_from_model(
@@ -65,8 +69,8 @@ def cache_features_from_model(
     device: str = "cpu",
 ) -> None:
     """前向缓存并落盘（NPZ + 元数据版本保护）。"""
-    feats, labels, ids = compute_cached_features(model, dataloader, pooling, model_hash, device)
-    attn_lens = [len(str(i)) for i in ids]
+    feats, labels, ids, attn_lens = compute_cached_features(
+        model, dataloader, pooling, model_hash, device)
     save_pooled_feature_cache(cache_path, feats, ids, attn_lens, pooling, model_hash,
                               extra={"labels": labels})
     return None
@@ -118,30 +122,37 @@ def train_heads_from_features(
     assert params, f"{head_type} 没有可训练参数"
     optimizer = torch.optim.AdamW(params, lr=lr)
 
-    n = features.shape[0]
-    n_layers = features.shape[1]
-    losses = torch.zeros(n_layers, device=device)
-    correct = torch.zeros(n_layers, device=device)
-    seen = torch.zeros(n_layers, device=device)
+    # 只把 head 置于 train 模式（backbone 不参与前向，保持冻结语义；Dropout 生效）
+    was_training = module.training
+    module.train()
+    try:
+        n = features.shape[0]
+        n_layers = features.shape[1]
+        losses = torch.zeros(n_layers, device=device)
+        correct = torch.zeros(n_layers, device=device)
+        seen = torch.zeros(n_layers, device=device)
 
-    for epoch in range(n_epochs):
-        perm = torch.randperm(n)
-        for start in range(0, n, batch_size):
-            idx = perm[start:start + batch_size]
-            feats = features[idx]                    # [B,12,768]
-            tgt = labels_t[idx]                      # [B]
-            logits = module(feats)                   # [B,12,2]
-            loss = torch.nn.functional.cross_entropy(logits.reshape(-1, 2), tgt.repeat(n_layers))
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            with torch.no_grad():
-                pred = logits.argmax(dim=-1)         # [B,12]
-                for layer in range(n_layers):
-                    losses[layer] += torch.nn.functional.cross_entropy(
-                        logits[:, layer], tgt).item() * idx.numel()
-                    correct[layer] += (pred[:, layer] == tgt).sum().item()
-                    seen[layer] += idx.numel()
+        for epoch in range(n_epochs):
+            perm = torch.randperm(n)
+            for start in range(0, n, batch_size):
+                idx = perm[start:start + batch_size]
+                feats = features[idx]                    # [B,12,768]
+                tgt = labels_t[idx]                      # [B]
+                logits = module(feats)                   # [B,12,2]
+                loss = torch.nn.functional.cross_entropy(
+                    logits.reshape(-1, 2), tgt.repeat(n_layers))
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                with torch.no_grad():
+                    pred = logits.argmax(dim=-1)         # [B,12]
+                    for layer in range(n_layers):
+                        losses[layer] += torch.nn.functional.cross_entropy(
+                            logits[:, layer], tgt).item() * idx.numel()
+                        correct[layer] += (pred[:, layer] == tgt).sum().item()
+                        seen[layer] += idx.numel()
+    finally:
+        module.training = was_training
 
     # backbone 不变断言
     backbone_unchanged = all(

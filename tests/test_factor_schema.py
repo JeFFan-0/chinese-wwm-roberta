@@ -86,11 +86,11 @@ def test_time_fields_timezone_aware():
     raw = _raw_rows()
     mapped, rejected = map_predictions(raw, label_mapping_confirmed=True, config=CONFIG)
     assert mapped["published_at_local"].dt.tz is not None  # 全部带时区
-    # 无时区时间应被拒绝
+    # 无时区时间应被拒绝：构造高置信度样本（不被低置信度拒识抢先拦截）
     from src.factor import to_raw_predictions as trp
     bad = trp(
-        text_ids=["x"], class_0_logit=[0.0], class_1_logit=[0.0],
-        class_0_prob=[0.5], class_1_prob=[0.5], exit_layer=[11],
+        text_ids=["x"], class_0_logit=[3.0], class_1_logit=[-3.0],
+        class_0_prob=[0.95], class_1_prob=[0.05], exit_layer=[11],
         head_type="h", pooling="p", model_hash="m", config_version="v",
         entity_ids=["E"], published_at=[datetime(2024, 1, 3, 10, 0)],  # 无时区
         sources=["s"], label_mapping_confirmed=True,
