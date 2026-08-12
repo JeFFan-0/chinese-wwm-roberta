@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "layers": [
+    {
+      "name": "raw_predictions",
+      "description": "逐文本原始输出，不可变",
+      "fields": [
+        "text_id", "entity_id", "published_at", "source",
+        "class_0_logit", "class_1_logit", "class_0_prob", "class_1_prob",
+        "logit_margin_1_minus_0", "max_probability", "entropy",
+        "exit_layer", "head_type", "pooling", "model_hash", "config_version"
+      ],
+      "immutable": true
+    },
+    {
+      "name": "mapped_predictions",
+      "description": "增加标签含义、主体与交易时间归属；标签映射确认后才含 p_negative/p_positive",
+      "fields": [
+        "text_id", "entity_id", "published_at_local", "factor_day", "trading_window",
+        "source_weight", "time_decay_weight",
+        "p_negative", "p_positive", "sentiment_score",
+        "model_hash", "config_version"
+      ],
+      "label_gated": true
+    },
+    {
+      "name": "daily_factor",
+      "description": "主体-交易日级聚合因子",
+      "fields": [
+        "entity_id", "factor_day", "n_texts", "weighted_sentiment",
+        "winsorized_sentiment", "standardized_sentiment",
+        "model_hash", "config_version"
+      ]
+    }
+  ],
+  "point_in_time": "after-close and weekend texts attributed to next trading day; no future leakage",
+  "traceability": "every aggregation preserves source text_id set"
+}

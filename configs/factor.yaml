@@ -1,0 +1,21 @@
+# 情绪因子聚合配置（P8）——仅骨架，不确定最终参数
+aggregation:
+  config_version: "1.0"           # 聚合配置版本（中间表必须保存）
+  research_timezone: "Asia/Shanghai"
+  market:
+    pre_open_time: "09:30"
+    close_time: "15:00"
+  time_decay_half_life_hours: 24.0
+  source_weights:                 # 来源权重（占位，待数据到位标定）
+    default: 1.0
+  min_max_probability: 0.6        # 低置信度拒识阈值（占位，未校准）
+  winsorize:
+    lower_quantile: 0.01
+    upper_quantile: 0.99
+  missing:
+    missing_entity: reject        # 缺失主体：拒绝/隔离
+    missing_time: reject          # 缺失时间：拒绝/隔离
+  dedup:
+    exact_text_entity: drop       # 同文本同主体去重
+
+label_mapping_confirmed: false    # 标签映射确认后设为 true 才输出 p_positive/p_negative
