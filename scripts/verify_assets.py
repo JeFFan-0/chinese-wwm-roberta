@@ -19,13 +19,11 @@ import argparse
 import json
 import os
 import platform
-import re
 import sys
 import time
 from typing import Any, Dict, List, Tuple
 
 import torch
-import yaml
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -39,29 +37,7 @@ from src.checkpoint import (  # noqa: E402
     strip_prefix,
     unwrap_state_dict,
 )
-
-
-# --------------------------------------------------------------------------- #
-# 配置解析
-# --------------------------------------------------------------------------- #
-_ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*):-([^}]*)\}")
-
-
-def _resolve_env(value: Any) -> Any:
-    """递归解析 ${VAR:-default} 形式的字符串。"""
-    if isinstance(value, dict):
-        return {k: _resolve_env(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_resolve_env(v) for v in value]
-    if isinstance(value, str):
-        return _ENV_PATTERN.sub(lambda m: os.environ.get(m.group(1), m.group(2)), value)
-    return value
-
-
-def load_config(path: str) -> Dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as f:
-        raw = yaml.safe_load(f)
-    return _resolve_env(raw)
+from src.config import load_yaml_config  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -180,7 +156,7 @@ def main() -> int:
     parser.add_argument("--skip-hash", action="store_true", help="跳过大文件 SHA-256（测试加速）")
     args = parser.parse_args()
 
-    cfg = load_config(os.path.join(ROOT, "configs", "model.yaml"))
+    cfg = load_yaml_config(os.path.join(ROOT, "configs", "model.yaml"))
     paths = cfg["paths"]
     ckpt_path = os.path.join(ROOT, paths["checkpoint"])
     base_dir = os.path.join(ROOT, paths["base_model_dir"])

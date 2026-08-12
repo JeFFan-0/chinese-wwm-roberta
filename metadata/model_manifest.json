@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-12T18:59:27+0800",
+  "generated_at": "2026-08-12T19:07:29+0800",
   "checkpoint": {
     "path": "chinese-wwm-roberta.ckpt",
-    "sha256": "b6de21972c150139d0407b8e8e92bed3db9f23f92a1c700121790fe18c10bc33",
+    "sha256": null,
     "size_bytes": 409126964,
     "source": "unknown"
   },
@@ -11,9 +11,9 @@
     "path": "chinese-roberta-wwm-ext",
     "name": "hfl/chinese-roberta-wwm-ext",
     "revision": "unknown",
-    "weights_sha256": "1ded5a5a1c7841dee6e47942f7b5bf2bcf6f73ff19197580f852f7f638f86b35",
-    "config_sha256": "61609babfbada201546297d62f7f3a642d8fd2f1cefec5571c6cbd1e2e2132d9",
-    "tokenizer_sha256": "53ff61207898738bbdc000f38abebef01041c8d23b6270c11855fc692d0a3ad6"
+    "weights_sha256": null,
+    "config_sha256": null,
+    "tokenizer_sha256": null
   },
   "environment": {
     "python": "3.11.14",
