@@ -1,0 +1,6 @@
+head_type,init_strategy,seed,param_count,storage_bytes,backbone_frozen,pooling
+original_final_head,copy_from_fc(read-only),,1538,6152,True,masked_mean
+shared_frozen_head,"copy_from_fc(frozen, shared)",,1538,6152,True,masked_mean
+copied_layer_heads,copy_from_fc,,18456,73824,True,masked_mean
+random_layer_heads,random(seed=42),42,18456,73824,True,masked_mean
+normalized_layer_heads,copy_from_fc + LayerNorm/Dropout,,36888,147552,True,masked_mean
