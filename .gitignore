@@ -1,0 +1,20 @@
+# 大模型权重文件（无法上传 GitHub，>100MB 会被拒绝）
+# 模型文件建议上传到 HuggingFace Hub: https://huggingface.co/new
+chinese-wwm-roberta.ckpt
+chinese-roberta-wwm-ext/pytorch_model.bin
+chinese-roberta-wwm-ext/tf_model.h5
+chinese-roberta-wwm-ext/flax_model.msgpack
+chinese-roberta-wwm-ext/.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 系统
+.DS_Store
