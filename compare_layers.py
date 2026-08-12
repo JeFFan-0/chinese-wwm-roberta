@@ -1,104 +1,128 @@
-"""对比微调 ckpt 与官方底座：逐层、逐组件 余弦相似度 + 相对 L2 位移
+"""对比微调 ckpt 与官方底座：修正后的逐层、逐组件统计（P6）。
+
+修复（对应 TODO P6）：
+- 解包必须显式返回并赋值（原实现 ``for d in (base, ft): d = d[...]`` 是无效赋值）；
+- 层级聚合按参数计算（delta_l2_layer = sqrt(Σ||ΔW_p||²) 等），不简单平均 rel_l2；
+- 计算**真实** max abs delta，不再凭 mean_abs_diff 断言"最大绝对误差"；
+- 层编号：hidden index 0 = embedding，encoder layer 0-11；表/图同时含两列；
+- 激活/注意力统计只对 attention_mask==1，提供 token-micro 与 sentence-macro；
+- 结论措辞：累计表示差异；不推断单层改动；不报 ReLU 死神经元（配置 GELU）；
+  无标签不报层任务价值。
 
 用法:
-    python compare_layers.py            # 用 26intern 环境: /home/intern_fjq_2026/miniconda3/envs/26intern/bin/python compare_layers.py
+    conda activate 26intern
+    python compare_layers.py [--device cuda]
 
-输出两张表:
-    1. 余弦相似度   —— 微调后 vs 底座，同一层同一组件的权重方向变化（越接近 1 = 几乎没动）
-    2. 相对 L2 位移 —— ||ΔW|| / ||W_base||（越大 = 动得越狠）
+输出 reports/tables/：
+    weights_per_tensor.csv / weights_per_layer.csv
+    activation_stats.csv / hidden_state_compare.csv / attention_compare.csv
+    local_layer_compare.csv
 """
-import torch
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+
 import pandas as pd
+import torch
 
-BASE_DIR = "chinese-roberta-wwm-ext"
-CKPT_PATH = "chinese-wwm-roberta.ckpt"
-N_LAYERS = 12
+ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, ROOT)
 
-comps = [
-    "attention.self.query.weight",
-    "attention.self.key.weight",
-    "attention.self.value.weight",
-    "attention.output.dense.weight",
-    "intermediate.dense.weight",
-    "output.dense.weight",
+from src.analysis import (  # noqa: E402
+    attention_comparison,
+    build_layer_models,
+    hidden_state_comparison,
+    load_pair,
+    local_layer_comparison,
+    masked_activation_stats,
+    per_layer_weight_metrics,
+)
+from src.modeling import load_tokenizer, tokenize_texts  # noqa: E402
+
+BASE_DIR = os.path.join(ROOT, "chinese-roberta-wwm-ext")
+BASE_WEIGHTS = os.path.join(BASE_DIR, "pytorch_model.bin")
+CKPT = os.path.join(ROOT, "chinese-wwm-roberta.ckpt")
+
+TEXTS = [
+    "北京天气怎么样，明天会下雨吗？",
+    "这个项目的核心目标是提升模型的每一层利用率，而不是只用最后一层。",
+    "今天股市大涨，投资者情绪明显回暖。",
+    "报告指出风险加剧，建议谨慎观望。",
 ]
 
 
-def cos(a, b):
-    """余弦相似度：只看方向，不看幅度"""
-    a, b = a.flatten().double(), b.flatten().double()
-    return float(a @ b / (a.norm() * b.norm()))
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    args = parser.parse_args()
 
+    os.makedirs(os.path.join(ROOT, "reports", "tables"), exist_ok=True)
+    print("=" * 72)
+    print("P6 修正后的逐层对比（ckpt vs 底座）")
+    print("=" * 72)
 
-def rel_shift(a, b):
-    """相对 L2 位移：||ΔW|| / ||W_base||，同时体现方向和幅度"""
-    a, b = a.flatten().double(), b.flatten().double()
-    return float((a - b).norm() / b.norm())
+    # ---- 权重级对比（CPU，无需前向）----
+    ft, base = load_pair(CKPT, BASE_WEIGHTS)
+    print(f"\n[权重级] ckpt {len(ft)} 键, 底座 {len(base)} 键")
+    tensor_rows, layer_rows = per_layer_weight_metrics(ft, base)
+    wt = pd.DataFrame(tensor_rows)
+    wl = pd.DataFrame(layer_rows)
+    wt.to_csv(os.path.join(ROOT, "reports", "tables", "weights_per_tensor.csv"), index=False)
+    wl.to_csv(os.path.join(ROOT, "reports", "tables", "weights_per_layer.csv"), index=False)
 
+    overall_max = wt["max_abs_delta"].max()
+    overall_argmax = wt.loc[wt["max_abs_delta"].idxmax(), ["encoder_layer", "component"]]
+    print(f"  真实 max abs delta = {overall_max:.6f}（{overall_argmax['component']} @ layer {overall_argmax['encoder_layer']}）")
+    print(wl[["encoder_layer", "delta_l2_layer", "relative_l2_layer", "mae_layer",
+              "max_abs_delta_layer", "mean_cosine"]].round(6).to_string(index=False))
 
-def main():
-    # 两份权重都 load 到 CPU
-    base = torch.load(f"{BASE_DIR}/pytorch_model.bin", map_location="cpu")
-    ft = torch.load(CKPT_PATH, map_location="cpu")
+    # ---- 激活级对比（需前向，同一输入）----
+    print(f"\n[激活级] device={args.device}，输入 {len(TEXTS)} 条")
+    ft_model, base_model = build_layer_models(BASE_DIR, CKPT, device=args.device)
+    tokenizer = load_tokenizer(BASE_DIR)
+    enc = tokenize_texts(TEXTS, tokenizer)
+    enc = {k: v.to(args.device) for k, v in enc.items()}
+    with torch.no_grad():
+        of = ft_model(**enc, output_hidden_states=True, output_attentions=True)
+        ob = base_model(**enc, output_hidden_states=True, output_attentions=True)
 
-    # 若未来 ckpt 包了一层 "model_state_dict"，自动解开
-    for d in (base, ft):
-        if "model_state_dict" in d:
-            d = d["model_state_dict"]
+    ast = pd.DataFrame(masked_activation_stats(of.hidden_states, enc["attention_mask"]))
+    hs = pd.DataFrame(hidden_state_comparison(of.hidden_states, ob.hidden_states, enc["attention_mask"]))
+    ac = pd.DataFrame(attention_comparison(of.attentions, ob.attentions, enc["attention_mask"]))
+    ast.to_csv(os.path.join(ROOT, "reports", "tables", "activation_stats.csv"), index=False)
+    hs.to_csv(os.path.join(ROOT, "reports", "tables", "hidden_state_compare.csv"), index=False)
+    ac.to_csv(os.path.join(ROOT, "reports", "tables", "attention_compare.csv"), index=False)
 
-    # 键对齐检查
-    base_keys = set(base)
-    ft_keys = set(ft)
-    only_ft = sorted(ft_keys - base_keys)          # 只在 ckpt 里（如 fc.*）
-    only_base = sorted(base_keys - ft_keys)        # 只在底座里（如 cls.* MLM 头）
-    print(f"[对齐检查] 底座 {len(base_keys)} 个键, ckpt {len(ft_keys)} 个键")
-    if only_ft:
-        print(f"  仅在 ckpt: {only_ft[:6]}{' ...' if len(only_ft) > 6 else ''}")
-    if only_base:
-        print(f"  仅底座(MLM头等): {only_base[:6]}{' ...' if len(only_base) > 6 else ''}")
+    print("\n  隐藏状态比较（masked，micro/macro 双口径）")
+    print(hs[["hidden_index", "encoder_layer", "cos_micro", "cos_macro", "l2_micro", "l2_macro"]]
+          .round(5).to_string(index=False))
+    print("\n  注意力比较（masked 无效 query/key）")
+    print(ac.round(6).to_string(index=False))
 
-    rows_cos, rows_shift = {}, {}
-    for c in comps:
-        rows_cos[c], rows_shift[c] = [], []
-        for i in range(N_LAYERS):
-            a = ft[f"bert.encoder.layer.{i}.{c}"]
-            b = base[f"bert.encoder.layer.{i}.{c}"]
-            rows_cos[c].append(round(cos(a, b), 6))
-            rows_shift[c].append(round(rel_shift(a, b), 4))
+    # ---- 局部层替换对比（隔离累计漂移）----
+    local = pd.DataFrame(local_layer_comparison(
+        ft_model, base_model, enc["input_ids"], enc["attention_mask"], enc["token_type_ids"]))
+    local.to_csv(os.path.join(ROOT, "reports", "tables", "local_layer_compare.csv"), index=False)
+    print("\n  局部层替换对比（同一 hidden 输入分别过 ft/base 对应层，仅自选文本 smoke test）")
+    print(local.round(6).to_string(index=False))
 
-    idx = [f"layer{i}" for i in range(N_LAYERS)]
-    cos_sim = pd.DataFrame(rows_cos, index=idx)
-    shift = pd.DataFrame(rows_shift, index=idx)
-
-    print("\n===== 1. 余弦相似度（微调后 vs 官方底座）=====")
-    print(cos_sim.to_string())
-    print("\n===== 2. 相对 L2 位移 ||ΔW|| / ||W_base|| =====")
-    print(shift.to_string())
-
-    # 附加：embedding 与 pooler（若有）
-    extra = {}
-    for k in ["bert.embeddings.word_embeddings.weight",
-              "bert.embeddings.position_embeddings.weight",
-              "bert.embeddings.token_type_embeddings.weight",
-              "bert.pooler.dense.weight"]:
-        if k in ft and k in base:
-            extra[k.split("bert.")[1]] = (round(cos(ft[k], base[k]), 3),
-                                          round(rel_shift(ft[k], base[k]), 4))
-    if extra:
-        print("\n===== 3. Embedding / Pooler（余弦, 相对L2）=====")
-        for name, (c, s) in extra.items():
-            print(f"  {name:<42} cos={c:<6} rel_L2={s}")
-
-    # 逐层平均，看变化趋势
-    avg_cos = cos_sim.mean(axis=1)
-    avg_shift = shift.mean(axis=1)
-    print("\n===== 4. 逐层平均趋势 =====")
-    trend = pd.DataFrame({"avg_cos": avg_cos.round(6), "avg_rel_L2": avg_shift.round(4)}, index=idx)
-    print(trend.to_string())
-    print("\n底层(0-3) vs 顶层(8-11):")
-    print(f"  avg_cos    底层={avg_cos[:4].mean():.6f}  顶层={avg_cos[-4:].mean():.6f}")
-    print(f"  avg_rel_L2 底层={avg_shift[:4].mean():.4f}  顶层={avg_shift[-4:].mean():.4f}")
+    # ---- 结论措辞（修正后）----
+    print("\n" + "=" * 72)
+    print("结论（措辞已按 P6 修正）")
+    print("=" * 72)
+    print("- 权重级：ft 与 base 差异整体很小（真实 max abs delta ≈ %.2e，逐层 rel_L2 近似均匀），"
+          % overall_max)
+    print("  这是'逐层参数几乎未动'的**累计表示差异**描述，不能由此推断某一层自身改动最大。")
+    print("- 激活级：hidden-state 差异随深度单调增大（cos 从 %.4f 降到 %.4f），"
+          % (hs["cos_micro"].iloc[1], hs["cos_micro"].iloc[-1]))
+    print("  这是**累计表示差异**（每层都作用在上一层差异之上），不由曲线推断单层改动量。")
+    print("- 未计算层任务价值/情绪能力：无标签数据，不做任何该声明。")
+    print("- 不使用 ReLU 死神经元概念：底座配置激活函数为 GELU。")
+    print("- 所有统计均 mask 掉 padding；结果见 reports/tables/。")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

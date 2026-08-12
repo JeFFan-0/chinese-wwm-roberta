@@ -134,12 +134,16 @@ class EarlyExitEngine(nn.Module):
         attention_mask: Optional[torch.Tensor],
         token_type_ids: Optional[torch.Tensor],
         exit_cond: Callable[[int, torch.Tensor], Optional[str]],
+        evaluate_layers: Optional[Sequence[int]] = None,
         record_all_logits: bool = False,
     ) -> ExitResult:
         """通用逐层循环。
 
         exit_cond(i, logits) -> Optional[str]：在层 i 执行后调用，返回退出原因
         或 None（继续）。最终层恒强制退出。
+
+        evaluate_layers：只在指定层计算 pooling + head（生产 Early-Exit 只会在
+        候选退出层评估头，其余层只执行不加头），None 表示每层都评估（调试）。
         """
         self.reset_counters()
         t0 = time.perf_counter()
@@ -154,9 +158,12 @@ class EarlyExitEngine(nn.Module):
         final_logits: Optional[torch.Tensor] = None
         all_logits: List[torch.Tensor] = []
 
+        eval_set = None if evaluate_layers is None else set(evaluate_layers)
         for i in range(self.fallback_layer + 1):
             h = self.bert.encoder.layer[i](h, attention_mask=ext_mask)
             executed += 1
+            if eval_set is not None and i not in eval_set:
+                continue  # 只执行层，不在该层评估头（降低无关开销）
             pooled = self._pool(h, attention_mask)
             logits = self._head_logits(i, pooled)
             if logits is None:
@@ -207,7 +214,9 @@ class EarlyExitEngine(nn.Module):
                 return "fixed_layer"
             return None
 
-        result = self._run_loop(input_ids, attention_mask, token_type_ids, cond)
+        # 生产成本模型：只在退出层评估 head，其余层只执行不加头
+        result = self._run_loop(input_ids, attention_mask, token_type_ids, cond,
+                                evaluate_layers=[exit_layer])
         # 与策略名一致，兜底也标记 fixed_layer
         result.exit_reason = "fixed_layer"
         return result
@@ -234,6 +243,7 @@ class EarlyExitEngine(nn.Module):
         if input_ids.shape[0] != 1:
             raise ValueError("v1 动态退出仅支持 batch size 1（active-set 见 run_active_set）")
         cands = sorted(set(candidate_layers or self.candidate_layers))
+        eval_layers = sorted(set(cands) | {self.fallback_layer})  # 兜底层恒评估
 
         if strategy == "max_prob":
             def cond(i, logits):
@@ -249,7 +259,8 @@ class EarlyExitEngine(nn.Module):
         else:
             raise ValueError(f"未知动态策略: {strategy!r}")
 
-        return self._run_loop(input_ids, attention_mask, token_type_ids, cond)
+        return self._run_loop(input_ids, attention_mask, token_type_ids, cond,
+                              evaluate_layers=eval_layers)
 
     # ------------------------------------------------------------------ #
     # v2：active-set batching（保持样本索引映射，恢复原顺序）

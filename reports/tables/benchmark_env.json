@@ -1,0 +1,15 @@
+{
+  "hardware": "NVIDIA A100 80GB PCIe",
+  "device": "cuda",
+  "python": "3.11.14",
+  "torch": "2.5.1",
+  "transformers": "5.15.0",
+  "cuda": "11.8",
+  "warmup_runs": 10,
+  "measure_runs": 50,
+  "dtype": "float32",
+  "pooling": "masked_mean",
+  "head_type": "copied_layer_heads",
+  "input_source": "fixed random ids, attention_mask=all-ones, seed fixed",
+  "disclaimer": "结果只表述为'若未来证明可在 layer k 退出，则在硬件/批/长度下测得速度 X'，不代表 layer k 已足够完成情绪任务。"
+}
