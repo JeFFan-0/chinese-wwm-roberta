@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "fields": {
+    "id":         {"type": "string",   "required": true,  "unique": true,  "description": "样本唯一 ID"},
+    "text":       {"type": "string",   "required": true,  "min_length": 1, "description": "非空文本"},
+    "label":      {"type": "integer",  "required": true,  "in_label_mapping": true, "description": "标签，必须在 label_mapping 中"},
+    "entity_id":  {"type": "string",   "required": false, "nullable": true, "description": "稳定证券/主体标识"},
+    "published_at": {"type": "datetime", "required": false, "timezone": true, "description": "发布时间，须带时区"},
+    "source":     {"type": "string",   "required": false, "nullable": true}
+  },
+  "label_mapping": {
+    "0": "unknown",
+    "1": "unknown"
+  },
+  "validation": {
+    "duplicate_id":          "error",
+    "empty_text":            "error",
+    "invalid_label":         "error",
+    "missing_required":      "error",
+    "missing_timezone":      "warn",
+    "missing_optional":      "allow"
+  }
+}
