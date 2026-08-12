@@ -8,6 +8,29 @@
 
 ---
 
+## ✅ 完成状态（2026-08-12）
+
+**P0–P8 全部完成，140 个自动测试通过。** 验收报告：`reports/no_data_stage_report.md`。
+
+| 阶段 | 交付 | 验证要点 |
+|---|---|---|
+| P0 资产与可信加载 | `src/checkpoint.py`、`scripts/verify_assets.py`、manifest | backbone 严格加载 199/199、missing/unexpected/mismatch=0、覆盖率 100% |
+| P1 完整推理候选 | `src/pooling.py`、`src/modeling.py`、smoke | 三 pooling 输出 `[B,768]`、概率行和≈1、单条=组批、padding 不变 |
+| P2 逐层模型头 | `src/heads.py`、heads 报告 | Head A–E；backbone 冻结（grad 全 None）；`[B,12,2]`；随机头 seed 复现 |
+| P3 逐层输出/缓存 | `src/layer_outputs.py`、导出 | 统一 schema、行数=样本×(12×头+1)、缓存版本保护 |
+| P4 真 Early-Exit | `src/early_exit.py` | layer 11=完整前向（diff 0）；k+1..11 call count=0；active-set 恢复顺序 |
+| P5 性能基准 | `benchmark_fixed_exit.py`、CSV/图 | A100/FP32 全矩阵；p50/p95、吞吐、显存、理论-实测差距 |
+| P6 分析修正 | `compare_layers.py` 重写、`src/analysis.py` | 真实 max abs delta=0.001488；逐参数聚合；masked 统计；措辞修正 |
+| P7 数据/训练/校准 | `src/data.py`、`training.py`、`calibration.py` | CSV/JSONL 校验、split 不重叠、只训 head（backbone 不变）、温度>0、阈值分离 |
+| P8 因子协议 | `src/factor.py`、schema | 三层表、point-in-time、去重/衰减/缺失值、可追溯 |
+
+**明确的未越界声明**：未确认 pooling；class 0/1 不命名为 positive/negative；未选正式
+Early-Exit 阈值；未报告 Accuracy/Macro-F1；合成数据结果一律 `synthetic_only=true`。
+
+---
+
+---
+
 ## 0. 当前边界与完成定义
 
 ### 0.1 当前已知事实
@@ -52,15 +75,15 @@
 
 只有同时满足以下条件，才视为无数据阶段完成：
 
-- [ ] 所有模型资产均有哈希、大小、来源和结构清单。
-- [ ] backbone 严格加载且参数覆盖率 100%。
-- [ ] `fc` 参数清单和所有候选 pooling 路径已实现。
-- [ ] 12 层模型头能够一次输出统一格式结果。
-- [ ] 强制最后层退出与普通完整前向在数值容差内一致。
-- [ ] 强制浅层退出时，后续层通过执行计数证明未被调用。
-- [ ] 固定层性能矩阵已在目标硬件上测量并落盘。
-- [ ] 数据接入、只训练头、校准和因子输出接口通过合成数据测试。
-- [ ] README/报告明确记录未知项、限制和数据到位后的下一步。
+- [x] 所有模型资产均有哈希、大小、来源和结构清单。
+- [x] backbone 严格加载且参数覆盖率 100%。
+- [x] `fc` 参数清单和所有候选 pooling 路径已实现。
+- [x] 12 层模型头能够一次输出统一格式结果。
+- [x] 强制最后层退出与普通完整前向在数值容差内一致。
+- [x] 强制浅层退出时，后续层通过执行计数证明未被调用。
+- [x] 固定层性能矩阵已在目标硬件上测量并落盘。
+- [x] 数据接入、只训练头、校准和因子输出接口通过合成数据测试。
+- [x] README/报告明确记录未知项、限制和数据到位后的下一步。
 
 ---
 
@@ -1094,27 +1117,27 @@ P6 现有分析修正可在 P0 后并行推进
 
 按以下顺序逐项勾选：
 
-1. [ ] 建立目录、配置和环境文件。
-2. [ ] 实现 `unwrap_state_dict()` 和前缀清理。
-3. [ ] 生成模型资产 manifest 和参数匹配报告。
-4. [ ] 实现 CLS、pooler、masked mean 三种 pooling。
-5. [ ] 加载原始 `fc`，建立完整二分类推理候选。
-6. [ ] 建立固定 smoke-test 文本和 padding/batch 一致性测试。
-7. [ ] 实现原始最终头与共享冻结头。
-8. [ ] 实现12个复制头与12个随机对照头。
-9. [ ] 验证 backbone 冻结和合成反向传播。
-10. [ ] 导出 `[batch, 12, 2]` 逐层结果。
-11. [ ] 实现带 call counter 的真正逐层 Early-Exit。
-12. [ ] 验证最后层等价和强制浅层停止。
-13. [ ] 跑固定退出层 latency/throughput 矩阵。
-14. [ ] 修复 `compare_layers.py` 解包和聚合。
-15. [ ] 修正 `check.ipynb` 的 mask、层编号和结论措辞。
-16. [ ] 建立数据 schema、加载器和特征缓存接口。
-17. [ ] 用合成数据验证只训练 heads 的管线。
-18. [ ] 建立温度校准和阈值搜索接口，不产生正式阈值。
-19. [ ] 建立文本级预测和主体—日期因子聚合协议。
-20. [ ] 运行全部 CPU 测试和可用的 CUDA smoke test。
-21. [ ] 完成 `no_data_stage_report.md`。
-22. [ ] 冻结本阶段配置和产物版本，等待真实数据解锁正式实验。
+1. [x] 建立目录、配置和环境文件。
+2. [x] 实现 `unwrap_state_dict()` 和前缀清理。
+3. [x] 生成模型资产 manifest 和参数匹配报告。
+4. [x] 实现 CLS、pooler、masked mean 三种 pooling。
+5. [x] 加载原始 `fc`，建立完整二分类推理候选。
+6. [x] 建立固定 smoke-test 文本和 padding/batch 一致性测试。
+7. [x] 实现原始最终头与共享冻结头。
+8. [x] 实现12个复制头与12个随机对照头。
+9. [x] 验证 backbone 冻结和合成反向传播。
+10. [x] 导出 `[batch, 12, 2]` 逐层结果。
+11. [x] 实现带 call counter 的真正逐层 Early-Exit。
+12. [x] 验证最后层等价和强制浅层停止。
+13. [x] 跑固定退出层 latency/throughput 矩阵。
+14. [x] 修复 `compare_layers.py` 解包和聚合。
+15. [x] 修正 `check.ipynb` 的 mask、层编号和结论措辞。
+16. [x] 建立数据 schema、加载器和特征缓存接口。
+17. [x] 用合成数据验证只训练 heads 的管线。
+18. [x] 建立温度校准和阈值搜索接口，不产生正式阈值。
+19. [x] 建立文本级预测和主体—日期因子聚合协议。
+20. [x] 运行全部 CPU 测试和可用的 CUDA smoke test。
+21. [x] 完成 `no_data_stage_report.md`。
+22. [x] 冻结本阶段配置和产物版本，等待真实数据解锁正式实验。
 
 执行时始终遵循一个原则：**无数据阶段把工程做完整、把假设写清楚、把测试做严格，但不把未验证输出包装成模型能力或投资因子结论。**
