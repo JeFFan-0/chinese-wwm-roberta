@@ -1,0 +1,41 @@
+# 完整二分类推理候选配置（无数据阶段）
+# 所有路径相对仓库根目录；可用环境变量覆盖，避免写死机器绝对路径。
+
+paths:
+  checkpoint: ${CKPT_PATH:-chinese-wwm-roberta.ckpt}
+  base_model_dir: ${BASE_MODEL_DIR:-chinese-roberta-wwm-ext}
+  artifacts_dir: artifacts
+
+# 底座与 tokenizer 信息
+base_model:
+  name: hfl/chinese-roberta-wwm-ext
+  revision: unknown          # 未确认是否与微调实际使用底座一致
+  model_type: bert
+  num_hidden_layers: 12
+  hidden_size: 768
+  num_attention_heads: 12
+  intermediate_size: 3072
+  vocab_size: 21128
+
+# 分类头 pooling：候选实现为 cls / pooler / masked_mean
+# 原模型是否用其中之一，尚未确认，因此标记为 unknown。
+pooling: unknown
+pooling_candidates: [cls, pooler, masked_mean]
+pooling_confirmed: false      # 原训练证据到位前恒为 false
+
+# 标签映射占位符（未确认前禁止命名为 negative/positive）
+label_mapping:
+  "0": unknown
+  "1": unknown
+
+# 原分类头前置层信息占位符（原训练代码到位后填写）
+pre_classifier:
+  dropout: unknown
+  layer_norm: unknown
+
+# 推理稳定性参数
+inference:
+  max_length: 128             # 与 tokenizer 配置一致；原训练 max length 未确认
+  truncation: true
+  padding: true
+  dtype: float32

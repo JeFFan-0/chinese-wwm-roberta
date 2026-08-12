@@ -4,7 +4,11 @@ chinese-wwm-roberta.ckpt
 chinese-roberta-wwm-ext/pytorch_model.bin
 chinese-roberta-wwm-ext/tf_model.h5
 chinese-roberta-wwm-ext/flax_model.msgpack
+chinese-roberta-wwm-ext/*.safetensors
 chinese-roberta-wwm-ext/.cache/
+
+# 大产物 / 缓存（不提交 GitHub）
+artifacts/
 
 # Python
 __pycache__/
@@ -12,6 +16,7 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+.pytest_cache/
 
 # Jupyter
 .ipynb_checkpoints/

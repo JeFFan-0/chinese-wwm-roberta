@@ -1,0 +1,18 @@
+# 固定层性能基准配置（P5）
+# 结果只能表述为"若未来证明可在 layer k 退出，则测得速度 X"，
+# 不能表述为"layer k 已足够完成情绪任务"。
+
+benchmark:
+  sequence_lengths: [32, 64, 128, 256]
+  batch_sizes: [1, 8, 16, 32]
+  exit_layers: [2, 4, 6, 8, 10, 11]
+  devices: [auto]               # 解析为当前可用设备；目标硬件 A100
+  dtypes: [float32]             # 生产若用 FP16/BF16 再单独测量
+  warmup_runs: 10
+  measure_runs: 100
+  sync_cuda: true
+  measure_full_model_baseline: true
+
+report:
+  output_csv: reports/tables/fixed_exit_benchmark.csv
+  figures_dir: reports/figures

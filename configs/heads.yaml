@@ -1,0 +1,49 @@
+# 逐层模型头配置（无数据阶段，backbone 恒冻结）
+
+heads:
+  enabled:
+    - original_final_head      # Head A：原始最终头（只读）
+    - shared_frozen_head       # Head B：共享冻结头（同一 fc 作用于 12 层）
+    - copied_layer_heads       # Head C：12 个复制头（初始 = 原 fc）
+    - random_layer_heads       # Head D：12 个随机头（固定 seed 对照）
+    - normalized_layer_heads   # Head E：LayerNorm+Dropout+Linear（非默认）
+
+# encoder layer 编号规范：0-11；hidden index = encoder_layer + 1
+# hidden index 0 为 embedding 输出，仅诊断，不进入 Early-Exit。
+encoder_layers: 12
+hidden_states_count: 13
+
+heads_spec:
+  original_final_head:
+    head_type: linear
+    trainable: false
+    source: checkpoint_fc
+    read_only: true
+  shared_frozen_head:
+    head_type: linear
+    trainable: false
+    source: checkpoint_fc
+    shared: true
+  copied_layer_heads:
+    head_type: linear
+    trainable: true            # 数据到位后只训练这些头
+    init: copy_from_fc
+    per_layer: true
+  random_layer_heads:
+    head_type: linear
+    trainable: true
+    init: random
+    seed: 42                   # 固定 seed，可精确复现
+  normalized_layer_heads:
+    head_type: layernorm_dropout_linear
+    trainable: true
+    init: copy_from_fc
+    dropout: 0.1
+    default: false             # 非默认头
+
+# 校准参数占位符
+calibration:
+  temperature_init: 1.0        # 每出口 T_l，初始 1，当前不拟合
+  fit_temperature: false
+  threshold: null              # 未校准，不得写推荐阈值
+  threshold_status: smoke_test_only

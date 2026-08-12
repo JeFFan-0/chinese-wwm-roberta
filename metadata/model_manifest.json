@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-12T18:59:27+0800",
+  "checkpoint": {
+    "path": "chinese-wwm-roberta.ckpt",
+    "sha256": "b6de21972c150139d0407b8e8e92bed3db9f23f92a1c700121790fe18c10bc33",
+    "size_bytes": 409126964,
+    "source": "unknown"
+  },
+  "base_model": {
+    "path": "chinese-roberta-wwm-ext",
+    "name": "hfl/chinese-roberta-wwm-ext",
+    "revision": "unknown",
+    "weights_sha256": "1ded5a5a1c7841dee6e47942f7b5bf2bcf6f73ff19197580f852f7f638f86b35",
+    "config_sha256": "61609babfbada201546297d62f7f3a642d8fd2f1cefec5571c6cbd1e2e2132d9",
+    "tokenizer_sha256": "53ff61207898738bbdc000f38abebef01041c8d23b6270c11855fc692d0a3ad6"
+  },
+  "environment": {
+    "python": "3.11.14",
+    "torch": "2.5.1",
+    "transformers": "5.15.0",
+    "cuda_available": true,
+    "cuda": "11.8",
+    "cudnn": 90100,
+    "device_name": "NVIDIA A100 80GB PCIe"
+  },
+  "backbone_config": {
+    "model_type": "bert",
+    "hidden_size": 768,
+    "num_hidden_layers": 12,
+    "num_attention_heads": 12,
+    "intermediate_size": 3072,
+    "vocab_size": 21128,
+    "max_position_embeddings": 512,
+    "hidden_act": "gelu",
+    "pad_token_id": 0
+  },
+  "tokenizer": {
+    "vocab_size": 21128,
+    "pad_token": "[PAD]",
+    "pad_token_id": 0,
+    "cls_token": "[CLS]",
+    "cls_token_id": 101,
+    "sep_token": "[SEP]",
+    "sep_token_id": 102,
+    "unk_token": "[UNK]",
+    "unk_token_id": 100,
+    "mask_token": "[MASK]",
+    "mask_token_id": 103,
+    "checks": []
+  },
+  "key_report": {
+    "backbone_strict_load": {
+      "matched_key_count": 199,
+      "missing_key_count": 0,
+      "unexpected_key_count": 0,
+      "shape_mismatch_count": 0,
+      "matched_tensor_ratio": 1.0,
+      "matched_param_ratio": 1.0
+    },
+    "fc": {
+      "fc.weight": {
+        "present": true,
+        "shape": [
+          2,
+          768
+        ],
+        "numel": 1536
+      },
+      "fc.bias": {
+        "present": true,
+        "shape": [
+          2
+        ],
+        "numel": 2
+      }
+    }
+  }
+}
