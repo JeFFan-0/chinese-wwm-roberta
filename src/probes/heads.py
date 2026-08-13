@@ -20,7 +20,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from .modeling import load_backbone, load_state_dict_safe
+from ..models.modeling import load_backbone, load_state_dict_safe
 
 N_ENCODER_LAYERS = 12
 HIDDEN_SIZE = 768
@@ -228,7 +228,7 @@ class LayerHeadsModel(nn.Module):
 
         embedding 输出（hidden index 0）不进入生产接头。
         """
-        from .pooling import apply_pooling
+        from ..models.pooling import apply_pooling
 
         pooled = torch.stack(
             [
@@ -329,7 +329,7 @@ def build_layer_heads_model(
         fc.bias.copy_(state["fc.bias"])
 
     if model_hash is None:
-        from .modeling import checkpoint_hash
+        from ..models.modeling import checkpoint_hash
         model_hash = checkpoint_hash(checkpoint_path)
 
     model = LayerHeadsModel(

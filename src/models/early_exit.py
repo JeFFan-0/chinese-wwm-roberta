@@ -23,7 +23,7 @@ from typing import Callable, List, Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
 
-from .heads import N_ENCODER_LAYERS
+from ..probes.heads import N_ENCODER_LAYERS
 from .pooling import apply_pooling
 
 
@@ -370,7 +370,7 @@ def build_early_exit_engine(
     device: str = "cpu",
 ) -> EarlyExitEngine:
     """装配 Early-Exit 引擎（加载 backbone + heads 模型）。"""
-    from .heads import build_layer_heads_model
+    from ..probes.heads import build_layer_heads_model
     if heads_enabled is None:
         heads_enabled = ["shared_frozen_head", "copied_layer_heads",
                          "random_layer_heads", "normalized_layer_heads"]

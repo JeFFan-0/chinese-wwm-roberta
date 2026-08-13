@@ -8,8 +8,8 @@ import os
 import pytest
 import torch
 
-from src.layer_outputs import expected_row_count, layer_diagnostics, layer_head_rows
-from src.modeling import tokenize_texts
+from src.probes.layer_outputs import expected_row_count, layer_diagnostics, layer_head_rows
+from src.models.modeling import tokenize_texts
 
 TEXT_A = "北京天气怎么样，明天会下雨吗？"
 TEXT_B = "这个项目的核心目标是提升模型的每一层利用率，而不是只用最后一层。"
@@ -59,7 +59,7 @@ def test_probability_validity(heads_model, tokenizer):
 
 
 def test_schema_columns(heads_model, tokenizer):
-    from src.layer_outputs import UNIFIED_COLUMNS
+    from src.probes.layer_outputs import UNIFIED_COLUMNS
     df = _run(heads_model, tokenizer, [TEXT_A], ["t0"])
     assert list(df.columns) == UNIFIED_COLUMNS
 

@@ -26,14 +26,14 @@ def ckpt_path():
 
 @pytest.fixture(scope="session")
 def tokenizer(base_dir):
-    from src.modeling import load_tokenizer
+    from src.models.modeling import load_tokenizer
     return load_tokenizer(base_dir)
 
 
 @pytest.fixture(scope="session")
 def heads_model(base_dir, ckpt_path):
     """5 种 head 全开的逐层头模型（masked_mean pooling）。"""
-    from src.heads import build_layer_heads_model
+    from src.probes.heads import build_layer_heads_model
     return build_layer_heads_model(
         base_dir, ckpt_path, heads_enabled=ALL_HEADS, pooling="masked_mean",
         pooling_confirmed=False, random_seed=42, model_hash="test-hash", device="cpu",

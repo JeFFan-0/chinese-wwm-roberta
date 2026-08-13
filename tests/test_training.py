@@ -8,9 +8,9 @@ import torch
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from src.data import generate_synthetic_dataset, make_dataloader  # noqa: E402
-from src.modeling import load_tokenizer, tokenize_texts  # noqa: E402
-from src.training import (  # noqa: E402
+from src.data.dataset import generate_synthetic_dataset, make_dataloader  # noqa: E402
+from src.models.modeling import load_tokenizer, tokenize_texts  # noqa: E402
+from src.probes.training import (  # noqa: E402
     load_cached_features,
     load_head_checkpoint,
     save_head_checkpoint,
@@ -82,7 +82,7 @@ def test_checkpoint_save_reload_logits(heads_model, synthetic_features, tmp_path
     ckpt_path = str(tmp_path / "heads.safetensors")
     save_head_checkpoint(heads_model, "copied_layer_heads", ckpt_path)
 
-    from src.heads import build_layer_heads_model
+    from src.probes.heads import build_layer_heads_model
     model2 = build_layer_heads_model(
         os.path.join(ROOT, "chinese-roberta-wwm-ext"),
         os.path.join(ROOT, "chinese-wwm-roberta.ckpt"),
@@ -101,8 +101,8 @@ def test_checkpoint_save_reload_logits(heads_model, synthetic_features, tmp_path
 def test_training_cache_version_guard(tmp_path, heads_model, synthetic_features, tokenizer):
     feats, labels, ids = synthetic_features
     attn_lens = [len(t) for t in ids]
-    from src.layer_outputs import save_pooled_feature_cache
-    from src.layer_outputs import CacheVersionError
+    from src.probes.layer_outputs import save_pooled_feature_cache
+    from src.probes.layer_outputs import CacheVersionError
 
     path = str(tmp_path / "f.npz")
     save_pooled_feature_cache(path, feats, ids, attn_lens, pooling="masked_mean",

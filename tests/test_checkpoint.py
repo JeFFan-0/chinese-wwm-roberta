@@ -9,7 +9,7 @@ import torch
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from src.checkpoint import (  # noqa: E402
+from src.models.checkpoint import (  # noqa: E402
     load_state_dict_safe,
     match_state_dicts,
     param_count,

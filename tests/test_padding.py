@@ -5,7 +5,7 @@
 """
 import torch
 
-from src.modeling import tokenize_texts
+from src.models.modeling import tokenize_texts
 
 TEXT_A = "北京天气怎么样，明天会下雨吗？"
 TEXT_B = "这是一个很长的测试句子，用于制造右侧 padding。" * 8  # 强制 TEXT_A 被 padding
@@ -36,7 +36,7 @@ def test_extra_padding_invariance(heads_model, tokenizer):
 
 def test_batch_composition_invariance_full_output(heads_model, tokenizer):
     """相同文本在不同 batch 组成下，逐层 logits 一致。"""
-    from src.layer_outputs import layer_head_rows
+    from src.probes.layer_outputs import layer_head_rows
 
     enc1 = tokenize_texts([TEXT_A, TEXT_B], tokenizer)
     enc2 = tokenize_texts([TEXT_B, TEXT_A], tokenizer)

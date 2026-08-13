@@ -21,8 +21,8 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from src.config import load_yaml_config  # noqa: E402
-from src.early_exit import build_early_exit_engine  # noqa: E402
-from src.modeling import load_tokenizer, tokenize_texts  # noqa: E402
+from src.models.early_exit import build_early_exit_engine  # noqa: E402
+from src.models.modeling import load_tokenizer, tokenize_texts  # noqa: E402
 
 TEXTS = [
     "北京天气怎么样，明天会下雨吗？",

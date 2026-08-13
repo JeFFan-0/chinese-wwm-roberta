@@ -111,7 +111,7 @@
 ## 复现命令
 
 ```bash
-conda activate 26intern
+conda activate nlp_fjq
 python scripts/verify_assets.py                 # P0 资产与严格加载（含哈希）
 python scripts/smoke_inference.py --device cpu  # P1 三种 pooling smoke
 python scripts/report_heads.py                  # P2 heads 参数清单

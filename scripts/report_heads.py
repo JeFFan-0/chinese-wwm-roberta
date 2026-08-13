@@ -20,7 +20,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from src.config import load_yaml_config  # noqa: E402
-from src.heads import build_layer_heads_model  # noqa: E402
+from src.probes.heads import build_layer_heads_model  # noqa: E402
 
 
 def main() -> int:

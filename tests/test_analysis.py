@@ -8,7 +8,7 @@ import torch
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from src.analysis import (  # noqa: E402
+from src.evaluation.analysis import (  # noqa: E402
     aggregate_layer,
     attention_comparison,
     hidden_state_comparison,

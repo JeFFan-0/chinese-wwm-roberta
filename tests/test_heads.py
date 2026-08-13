@@ -13,16 +13,16 @@ import torch
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from src.checkpoint import load_state_dict_safe  # noqa: E402
-from src.heads import (  # noqa: E402
+from src.models.checkpoint import load_state_dict_safe  # noqa: E402
+from src.probes.heads import (  # noqa: E402
     CopiedLayerHeads,
     ExitCalibration,
     LayerHeadsModel,
     RandomLayerHeads,
     build_layer_heads_model,
 )
-from src.modeling import load_tokenizer, tokenize_texts  # noqa: E402
-from src.pooling import apply_pooling  # noqa: E402
+from src.models.modeling import load_tokenizer, tokenize_texts  # noqa: E402
+from src.models.pooling import apply_pooling  # noqa: E402
 
 CKPT = os.path.join(ROOT, "chinese-wwm-roberta.ckpt")
 BASE_DIR = os.path.join(ROOT, "chinese-roberta-wwm-ext")

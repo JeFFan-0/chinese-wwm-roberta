@@ -13,7 +13,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from src.factor import (  # noqa: E402
+from src.factors.factor import (  # noqa: E402
     LABEL_COLUMNS,
     aggregate_daily_factor,
     check_no_label_fields_when_unknown,
@@ -87,7 +87,7 @@ def test_time_fields_timezone_aware():
     mapped, rejected = map_predictions(raw, label_mapping_confirmed=True, config=CONFIG)
     assert mapped["published_at_local"].dt.tz is not None  # 全部带时区
     # 无时区时间应被拒绝：构造高置信度样本（不被低置信度拒识抢先拦截）
-    from src.factor import to_raw_predictions as trp
+    from src.factors.factor import to_raw_predictions as trp
     bad = trp(
         text_ids=["x"], class_0_logit=[3.0], class_1_logit=[-3.0],
         class_0_prob=[0.95], class_1_prob=[0.05], exit_layer=[11],

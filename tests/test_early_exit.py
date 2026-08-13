@@ -7,8 +7,8 @@ test_last_layer_fallback / test_active_batch_order。
 import pytest
 import torch
 
-from src.early_exit import EarlyExitEngine
-from src.modeling import tokenize_texts
+from src.models.early_exit import EarlyExitEngine
+from src.models.modeling import tokenize_texts
 
 TEXT_A = "北京天气怎么样，明天会下雨吗？"
 TEXT_B = "这个项目的核心目标是提升模型的每一层利用率，而不是只用最后一层。"

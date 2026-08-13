@@ -22,15 +22,15 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from src.config import load_yaml_config  # noqa: E402
-from src.heads import build_layer_heads_model  # noqa: E402
-from src.layer_outputs import (  # noqa: E402
+from src.probes.heads import build_layer_heads_model  # noqa: E402
+from src.probes.layer_outputs import (  # noqa: E402
     expected_row_count,
     layer_diagnostics,
     layer_head_rows,
     load_pooled_feature_cache,
     save_pooled_feature_cache,
 )
-from src.modeling import load_tokenizer, tokenize_texts  # noqa: E402
+from src.models.modeling import load_tokenizer, tokenize_texts  # noqa: E402
 
 DEFAULT_TEXTS = [
     "北京天气怎么样，明天会下雨吗？",

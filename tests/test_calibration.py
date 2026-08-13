@@ -8,7 +8,7 @@ import torch
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from src.calibration import (  # noqa: E402
+from src.evaluation.calibration import (  # noqa: E402
     assert_calibration_test_separate,
     ece,
     entropy_score,

@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from .config import load_yaml_config
+from ..config import load_yaml_config
 
 DATETIME_RE = re.compile(
     r"^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(\.\d+)?"

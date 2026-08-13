@@ -18,8 +18,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
 
-from .checkpoint import load_state_dict_safe, strip_prefix, unwrap_state_dict
-from .modeling import load_backbone
+from ..models.checkpoint import load_state_dict_safe, strip_prefix, unwrap_state_dict
+from ..models.modeling import load_backbone
 
 COMPONENTS = [
     "attention.self.query.weight", "attention.self.key.weight",

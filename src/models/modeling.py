@@ -37,7 +37,7 @@ def checkpoint_hash(path: str, manifest_path: Optional[str] = None) -> str:
     """
     if manifest_path is None:
         manifest_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             "metadata", "model_manifest.json",
         )
     if os.path.isfile(path) and os.path.isfile(manifest_path):

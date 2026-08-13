@@ -23,3 +23,6 @@ venv/
 
 # 系统
 .DS_Store
+
+# 数据获取脚本：凭据配置不入库
+src/data/fetch/config.py

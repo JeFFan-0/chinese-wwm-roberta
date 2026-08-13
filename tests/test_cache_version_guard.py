@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import torch
 
-from src.layer_outputs import (
+from src.probes.layer_outputs import (
     CacheVersionError,
     load_pooled_feature_cache,
     save_pooled_feature_cache,

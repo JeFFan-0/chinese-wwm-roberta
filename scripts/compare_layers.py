@@ -27,10 +27,10 @@ import sys
 import pandas as pd
 import torch
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from src.analysis import (  # noqa: E402
+from src.evaluation.analysis import (  # noqa: E402
     attention_comparison,
     build_layer_models,
     hidden_state_comparison,
@@ -39,7 +39,7 @@ from src.analysis import (  # noqa: E402
     masked_activation_stats,
     per_layer_weight_metrics,
 )
-from src.modeling import load_tokenizer, tokenize_texts  # noqa: E402
+from src.models.modeling import load_tokenizer, tokenize_texts  # noqa: E402
 
 BASE_DIR = os.path.join(ROOT, "chinese-roberta-wwm-ext")
 BASE_WEIGHTS = os.path.join(BASE_DIR, "pytorch_model.bin")

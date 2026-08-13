@@ -20,7 +20,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from src.config import load_yaml_config  # noqa: E402
-from src.factor import (  # noqa: E402
+from src.factors.factor import (  # noqa: E402
     aggregate_daily_factor,
     map_predictions,
     to_raw_predictions,

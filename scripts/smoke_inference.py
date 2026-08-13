@@ -25,7 +25,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from src.modeling import build_candidate, load_tokenizer, tokenize_texts  # noqa: E402
+from src.models.modeling import build_candidate, load_tokenizer, tokenize_texts  # noqa: E402
 
 # 固定 smoke-test 文本集合（不评价情绪语义）
 SMOKE_TEXTS = [

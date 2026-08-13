@@ -1,14 +1,13 @@
 """chinese-wwm-roberta 无数据阶段工程源码包。
 
-各子模块职责：
-- checkpoint: checkpoint 安全解包、前缀处理、键匹配报告
-- modeling:   backbone 与完整二分类推理候选
-- pooling:    CLS / pooler / masked-mean 三种 pooling
-- heads:      各类逐层模型头
-- layer_outputs: 逐层输出与导出格式
-- early_exit: 真正逐层执行的 Early-Exit 引擎
-- factor:     情绪因子输出协议与聚合接口
-- data:       CSV/JSONL/合成数据加载与训练管线
+子包职责：
+- models:      checkpoint 安全加载、backbone/完整推理、pooling、Early-Exit 引擎
+- probes:      逐层模型头（Head A–E）、逐层输出/缓存、只训练 head 的训练入口
+- data:        数据协议/加载器（dataset.py）与取数脚本（fetch/）
+- factors:     情绪因子输出协议与聚合骨架
+- evaluation:  逐层对比分析、校准与阈值搜索
+
+共享工具 config.py 保留在 src/ 根目录（YAML + 环境变量覆盖的配置加载）。
 """
 
 __version__ = "0.1.0"

@@ -26,7 +26,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from src.checkpoint import unwrap_state_dict  # noqa: E402
+from src.models.checkpoint import unwrap_state_dict  # noqa: E402
 
 BASE_BIN = os.path.join(ROOT, "chinese-roberta-wwm-ext", "pytorch_model.bin")
 BASE_OUT = os.path.join(ROOT, "chinese-roberta-wwm-ext", "model.safetensors")

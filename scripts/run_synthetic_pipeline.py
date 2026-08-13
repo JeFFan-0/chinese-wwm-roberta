@@ -31,7 +31,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from src.calibration import (  # noqa: E402
+from src.evaluation.calibration import (  # noqa: E402
     assert_calibration_test_separate,
     ece,
     entropy_score,
@@ -43,7 +43,7 @@ from src.calibration import (  # noqa: E402
     temperature_scale,
 )
 from src.config import load_yaml_config  # noqa: E402
-from src.data import (  # noqa: E402
+from src.data.dataset import (  # noqa: E402
     assert_no_overlap,
     generate_synthetic_dataset,
     load_dataset,
@@ -51,9 +51,9 @@ from src.data import (  # noqa: E402
     split_dataset,
     validate_dataset,
 )
-from src.heads import build_layer_heads_model  # noqa: E402
-from src.modeling import load_tokenizer, tokenize_texts  # noqa: E402
-from src.training import (  # noqa: E402
+from src.probes.heads import build_layer_heads_model  # noqa: E402
+from src.models.modeling import load_tokenizer, tokenize_texts  # noqa: E402
+from src.probes.training import (  # noqa: E402
     load_cached_features,
     load_head_checkpoint,
     save_head_checkpoint,
@@ -113,7 +113,7 @@ def main() -> int:
     print(f"[1] 合成数据 {len(samples)} 条；CSV/JSONL 均加载；校验通过")
 
     # 检测非法情况（用副本，避免污染原始数据集）
-    from src.data import Sample
+    from src.data.dataset import Sample
     bad = [Sample(s.id, s.text, s.label, s.entity_id, s.published_at, s.source)
            for s in samples[:3]]
     bad[0].id = bad[1].id                       # 重复 ID

@@ -41,8 +41,8 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from src.config import load_yaml_config  # noqa: E402
-from src.early_exit import build_early_exit_engine  # noqa: E402
-from src.heads import build_layer_heads_model  # noqa: E402
+from src.models.early_exit import build_early_exit_engine  # noqa: E402
+from src.probes.heads import build_layer_heads_model  # noqa: E402
 
 # dataviz 参考调色板（categorical 固定顺序，不用循环色）
 CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"]

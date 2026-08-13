@@ -1,5 +1,5 @@
-# 推荐使用 conda 环境 26intern（torch 2.5.1 / transformers 5.15.0 / CUDA A100）
-# 安装: conda activate 26intern
+# 推荐使用 conda 环境 nlp_fjq（torch 2.5.1 / transformers 5.15.0 / CUDA A100）
+# 安装: conda activate nlp_fjq
 torch==2.5.1
 transformers==5.15.0
 numpy>=1.24
